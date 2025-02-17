@@ -1,3 +1,4 @@
+package my.map.reduce;
 import java.io.IOException;
 import java.util.StringTokenizer;
 import org.apache.hadoop.mapreduce.Mapper;
