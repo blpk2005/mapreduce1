@@ -1,0 +1,63 @@
+package analytics;
+
+import java.io.IOException;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+
+public class Tempr {
+
+    public static class MyMap extends Mapper<LongWritable, Text, Text, IntWritable> {
+        public void map(LongWritable k, Text v, Context con) throws IOException, InterruptedException {
+            String line = v.toString();
+            String yr = line.substring(5, 9);  // Extract year
+            int t = Integer.parseInt(line.substring(12, 14));  // Extract temperature
+            con.write(new Text(yr), new IntWritable(t));
+        }
+    }
+
+    public static class MyRed extends Reducer<Text, IntWritable, Text, IntWritable> {
+        public void reduce(Text yr, Iterable<IntWritable> tlist, Context con)
+                throws IOException, InterruptedException {
+            int maxTemp = Integer.MIN_VALUE;  // Initialize to the smallest possible value
+            for (IntWritable t : tlist) {
+                maxTemp = Math.max(maxTemp, t.get());  // Find the max temperature
+            }
+            con.write(yr, new IntWritable(maxTemp));  // Output the result
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        Configuration c = new Configuration();
+        String[] files = new GenericOptionsParser(c, args).getRemainingArgs();
+
+        if (files.length != 2) {
+            System.err.println("Usage: Tempr <input path> <output path>");
+            System.exit(2);
+        }
+
+        Path p1 = new Path(files[0]);  // Input path
+        Path p2 = new Path(files[1]);  // Output path
+
+        Job j = Job.getInstance(c, "MaxTempr");
+        j.setJarByClass(Tempr.class);
+        j.setMapperClass(MyMap.class);
+        j.setCombinerClass(MyRed.class);
+        j.setReducerClass(MyRed.class);
+        j.setOutputKeyClass(Text.class);
+        j.setOutputValueClass(IntWritable.class);
+
+        FileInputFormat.addInputPath(j, p1);
+        FileOutputFormat.setOutputPath(j, p2);
+
+        System.exit(j.waitForCompletion(true) ? 0 : 1);
+    }
+}
