@@ -1,0 +1,107 @@
+Program 5:
+Write a Map Reduce program that mines weather data.
+Weather sensors collecting data every hour at many locations across the globe gather a large
+volume of log data, which is a good candidate for analysis with Map Reduce, since it is semi
+structured and record-oriented.
+Step1 create Java Project
+File→New →Java Project
+First time
+File→New →Others→Java Project
+Project Name→Weather data→scr
+
+Step2
+Create Package under
+Src→New→Package→analytics
+Step3
+Create Java class
+
+Package→New→Class→Tempr.java
+Step4
+Supply Java code and Save.
+code:
+package analytics;
+import java.io.IOException;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+public class Tempr
+{
+public static class MyMap extends Mapper<LongWritable,Text,Text,IntWritable>
+{
+public void map(LongWritable k,Text v,Context con) throws IOException,
+InterruptedException
+{
+// xxxxx1950xxx24xxx
+// xxxxx1950xxx26xxx
+// xxxxx1950xxx25xxx
+String line=v.toString();
+String yr = line.substring(5,9);
+int t= Integer.parseInt(line.substring(12,14));
+con.write(new Text(yr),new IntWritable(t));
+}
+}
+/*
+<1950, <24,26,25>>
+*/
+public static class MyRed extends Reducer<Text,IntWritable,Text,IntWritable>
+{
+public void reduce(Text yr,Iterable<IntWritable> tlist,Context con)
+throws IOException, InterruptedException
+{
+int m=0;
+for(IntWritable t:tlist)
+{
+
+m=Math.max(m,t.get());
+}
+con.write(yr,new IntWritable(m));
+}
+}
+/*
+1950 26
+*/
+public static void main(String[] args) throws Exception
+{
+Configuration c=new Configuration();
+/*
+Execution::
+$hadoop jar aaaaa.jar analytics.Tempr /a/b/c/file1.txt /x/y/z/res
+*/
+String[] files=new GenericOptionsParser(c, args).getRemainingArgs();
+Path p1 = new Path(files[0]);
+Path p2 = new Path(files[1]);
+Job j = new Job(c, "MaxTempr");
+j.setJarByClass(Tempr.class);
+j.setMapperClass(MyMap.class);
+j.setCombinerClass(MyRed.class);
+j.setReducerClass(MyRed.class);
+j.setOutputKeyClass(Text.class);
+j.setOutputValueClass(IntWritable.class);
+FileInputFormat.addInputPath(j, p1);
+FileOutputFormat.setOutputPath(j, p2);
+System.exit(j.waitForCompletion(true) ? 0:1);
+}
+Step5
+Create JAR file
+
+Weather data -> Export -> Java JAR file
+
+Note Give Jar file name as Weather data.
+Step6
+Submit Map-Reduce Jar
+$ Hadoop jar Tempr.jar /Tempr.java /usr/weather_mining/Input_file.txt
+/usr/weather_mining
+$Hadoop fs -cat /usr/weather_mining/Input_file.txt
+xxxxx1950xxx24xxx
+xxxxx1950xxx26xxx
+xxxxx1950xxx25xxx
+$Hadoop fs -cat /usr/weather_mining/part-r-00000
+1950 26
